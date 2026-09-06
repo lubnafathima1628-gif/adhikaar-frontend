@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-export function usePreferredMotion() {
+export const usePreferredMotion = () => {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   useEffect(() => {
@@ -18,4 +18,4 @@ export function usePreferredMotion() {
   }, []);
 
   return prefersReducedMotion;
-}
+};
