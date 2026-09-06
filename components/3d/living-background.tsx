@@ -1,130 +1,120 @@
 'use client';
 
-import { useRef, useEffect, useMemo } from 'react';
-import { Canvas, useFrame, useThree } from '@react-three/fiber';
-import { Preload, OrbitControls } from '@react-three/drei';
-import * as THREE from 'three';
-import { usePreferredMotion, useIsMobile } from '@/hooks/use-preferred-motion';
-
-function ParticleSystem() {
-  const meshRef = useRef<THREE.Points>(null);
-  const prefersReducedMotion = usePreferredMotion();
-  const isMobile = useIsMobile();
-
-  // Create particles based on device capability
-  const particleCount = isMobile ? 500 : 2000;
-
-  const particles = useMemo(() => {
-    const positions = new Float32Array(particleCount * 3);
-    for (let i = 0; i < particleCount * 3; i += 3) {
-      positions[i] = (Math.random() - 0.5) * 100;
-      positions[i + 1] = (Math.random() - 0.5) * 100;
-      positions[i + 2] = (Math.random() - 0.5) * 100;
-    }
-    return positions;
-  }, [particleCount]);
-
-  useFrame(() => {
-    if (!meshRef.current || prefersReducedMotion) return;
-
-    meshRef.current.rotation.x += 0.0001;
-    meshRef.current.rotation.y += 0.00015;
-
-    const positions = meshRef.current.geometry.attributes.position.array as Float32Array;
-    for (let i = 0; i < positions.length; i += 3) {
-      positions[i] += (Math.random() - 0.5) * 0.02;
-      positions[i + 1] += (Math.random() - 0.5) * 0.02;
-      positions[i + 2] += (Math.random() - 0.5) * 0.02;
-    }
-    meshRef.current.geometry.attributes.position.needsUpdate = true;
-  });
-
-  return (
-    <points ref={meshRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={particleCount}
-          array={particles}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <pointsMaterial
-        size={0.2}
-        color="#5a9fa8"
-        transparent
-        opacity={0.4}
-        sizeAttenuation
-      />
-    </points>
-  );
-}
-
-function ConnectionLines() {
-  const linesRef = useRef<THREE.LineSegments>(null);
-  const prefersReducedMotion = usePreferredMotion();
-
-  const linePositions = useMemo(() => {
-    const positions = new Float32Array(240); // 40 lines * 2 points * 3 coords
-    for (let i = 0; i < positions.length; i += 6) {
-      positions[i] = (Math.random() - 0.5) * 100;
-      positions[i + 1] = (Math.random() - 0.5) * 100;
-      positions[i + 2] = (Math.random() - 0.5) * 100;
-      positions[i + 3] = (Math.random() - 0.5) * 100;
-      positions[i + 4] = (Math.random() - 0.5) * 100;
-      positions[i + 5] = (Math.random() - 0.5) * 100;
-    }
-    return positions;
-  }, []);
-
-  useFrame(() => {
-    if (!linesRef.current || prefersReducedMotion) return;
-    linesRef.current.rotation.x += 0.00005;
-    linesRef.current.rotation.y += 0.00008;
-  });
-
-  return (
-    <lineSegments ref={linesRef}>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={40}
-          array={linePositions}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <lineBasicMaterial color="#6b8e7f" transparent opacity={0.3} linewidth={1} />
-    </lineSegments>
-  );
-}
-
-function EnvironmentLights() {
-  return (
-    <>
-      <ambientLight intensity={0.4} color="#ffffff" />
-      <directionalLight position={[50, 50, 50]} intensity={0.6} color="#e8e3d8" />
-      <pointLight position={[-50, -50, 50]} intensity={0.3} color="#5a9fa8" />
-      <pointLight position={[50, -50, -50]} intensity={0.2} color="#6b8e7f" />
-    </>
-  );
-}
+import { useEffect, useRef } from 'react';
 
 export function LivingBackground() {
-  const isMobile = useIsMobile();
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set canvas size
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    // Particle system
+    const particles: Array<{
+      x: number;
+      y: number;
+      vx: number;
+      vy: number;
+      radius: number;
+      opacity: number;
+    }> = [];
+
+    // Create particles
+    for (let i = 0; i < 50; i++) {
+      particles.push({
+        x: Math.random() * canvas.width,
+        y: Math.random() * canvas.height,
+        vx: (Math.random() - 0.5) * 0.5,
+        vy: (Math.random() - 0.5) * 0.5,
+        radius: Math.random() * 1.5 + 0.5,
+        opacity: Math.random() * 0.5 + 0.1,
+      });
+    }
+
+    // Animation loop
+    let animationId: number;
+
+    const animate = () => {
+      // Clear canvas with slight transparency for trail effect
+      ctx.fillStyle = 'rgba(15, 38, 38, 0.05)';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Update and draw particles
+      particles.forEach((particle) => {
+        // Update position
+        particle.x += particle.vx;
+        particle.y += particle.vy;
+
+        // Bounce off walls
+        if (particle.x - particle.radius < 0 || particle.x + particle.radius > canvas.width) {
+          particle.vx = -particle.vx;
+        }
+        if (particle.y - particle.radius < 0 || particle.y + particle.radius > canvas.height) {
+          particle.vy = -particle.vy;
+        }
+
+        // Keep within bounds
+        particle.x = Math.max(particle.radius, Math.min(canvas.width - particle.radius, particle.x));
+        particle.y = Math.max(particle.radius, Math.min(canvas.height - particle.radius, particle.y));
+
+        // Draw particle
+        ctx.fillStyle = `rgba(90, 159, 168, ${particle.opacity})`;
+        ctx.beginPath();
+        ctx.arc(particle.x, particle.y, particle.radius, 0, Math.PI * 2);
+        ctx.fill();
+      });
+
+      // Draw connections between nearby particles
+      for (let i = 0; i < particles.length; i++) {
+        for (let j = i + 1; j < particles.length; j++) {
+          const dx = particles[i].x - particles[j].x;
+          const dy = particles[i].y - particles[j].y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < 150) {
+            ctx.strokeStyle = `rgba(90, 159, 168, ${0.1 * (1 - distance / 150)})`;
+            ctx.lineWidth = 0.5;
+            ctx.beginPath();
+            ctx.moveTo(particles[i].x, particles[i].y);
+            ctx.lineTo(particles[j].x, particles[j].y);
+            ctx.stroke();
+          }
+        }
+      }
+
+      animationId = requestAnimationFrame(animate);
+    };
+
+    animate();
+
+    // Handle window resize
+    const handleResize = () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    };
+
+    window.addEventListener('resize', handleResize);
+
+    return () => {
+      cancelAnimationFrame(animationId);
+      window.removeEventListener('resize', handleResize);
+    };
+  }, []);
 
   return (
-    <div className="absolute inset-0 w-full h-full">
-      <Canvas
-        camera={{ position: [0, 0, 50], fov: 75 }}
-        dpr={isMobile ? 1 : window.devicePixelRatio}
-        performance={{ min: 0.5 }}
-      >
-        <EnvironmentLights />
-        <ParticleSystem />
-        <ConnectionLines />
-        {!isMobile && <OrbitControls enableZoom={false} enablePan={false} autoRotate />}
-        <Preload all />
-      </Canvas>
-    </div>
+    <canvas
+      ref={canvasRef}
+      className="fixed inset-0 w-full h-full pointer-events-none z-0"
+      style={{
+        background: 'linear-gradient(135deg, #0F2626 0%, #1A3A3A 50%, #0F2626 100%)',
+      }}
+    />
   );
 }
